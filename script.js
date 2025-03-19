@@ -3,7 +3,7 @@ const firebaseConfig = {
     authDomain: "gussgame-3781c.firebaseapp.com",
     databaseURL: "https://gussgame-3781c-default-rtdb.firebaseio.com/",
     projectId: "gussgame-3781c",
-    storageBucket: "gussgame-3781c.firebasestorage.app",
+    storageBucket: "gussgame-3781c.appspot.com",
     messagingSenderId: "567582107940",
     appId: "1:567582107940:web:63e477503c4cc038b8abb1",
     measurementId: "G-WWMC1KKN6L"

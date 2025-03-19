@@ -12,7 +12,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// Game variables
+// Global Variables
 let roomId = "";
 let playerName = "";
 let players = [];
@@ -21,6 +21,7 @@ let words = ["apple", "banana", "car", "dog", "elephant"];
 let selectedWord = "";
 let gameRounds = 3;
 let scores = {};
+let isDrawing = false;
 
 // UI Elements
 const createRoomBtn = document.getElementById("createRoom");
@@ -34,16 +35,16 @@ const sendMessageBtn = document.getElementById("sendMessage");
 const guessInput = document.getElementById("guessInput");
 const guessBtn = document.getElementById("guessBtn");
 
-// Create a game room
+// Create a Room
 createRoomBtn.addEventListener("click", () => {
     roomId = Math.random().toString(36).substr(2, 6);
     playerName = prompt("Enter your name:");
     if (!playerName) return;
-    db.ref(`rooms/${roomId}`).set({ players: { [playerName]: 0 }, currentTurn: 0, word: "" });
+    db.ref(`rooms/${roomId}`).set({ players: { [playerName]: 0 }, currentTurn: 0, word: "", chat: [] });
     alert(`Room Created! Share this code: ${roomId}`);
 });
 
-// Join an existing room
+// Join a Room
 joinRoomBtn.addEventListener("click", () => {
     roomId = prompt("Enter Room Code:");
     playerName = prompt("Enter your name:");
@@ -52,40 +53,41 @@ joinRoomBtn.addEventListener("click", () => {
     alert("Joined Room: " + roomId);
 });
 
-// Start game
+// Start Game
 startGameBtn.addEventListener("click", () => {
-    db.ref(`rooms/${roomId}/word`).set(words[Math.floor(Math.random() * words.length)]);
+    let wordOptions = [
+        words[Math.floor(Math.random() * words.length)],
+        words[Math.floor(Math.random() * words.length)],
+        words[Math.floor(Math.random() * words.length)]
+    ];
+    selectedWord = prompt(`Choose a word: ${wordOptions.join(", ")}`);
+    db.ref(`rooms/${roomId}/word`).set(selectedWord);
     db.ref(`rooms/${roomId}/currentTurn`).set(0);
 });
 
-// Listen for word selection
-if (roomId) {
-    db.ref(`rooms/${roomId}/word`).on("value", (snapshot) => {
-        selectedWord = snapshot.val();
-    });
-}
+// Listen for Selected Word
+db.ref(`rooms/${roomId}/word`).on("value", (snapshot) => {
+    selectedWord = snapshot.val();
+});
 
-// Handle drawing
-let drawing = false;
-canvas.addEventListener("mousedown", () => (drawing = true));
-canvas.addEventListener("mouseup", () => (drawing = false));
+// Drawing Feature
+canvas.addEventListener("mousedown", () => isDrawing = true);
+canvas.addEventListener("mouseup", () => isDrawing = false);
 canvas.addEventListener("mousemove", (event) => {
-    if (!drawing) return;
+    if (!isDrawing) return;
     let x = event.offsetX;
     let y = event.offsetY;
     ctx.fillRect(x, y, 5, 5);
-    db.ref(`rooms/${roomId}/drawing`).set({ x, y });
+    db.ref(`rooms/${roomId}/drawing`).push({ x, y });
 });
 
-// Listen for drawing updates
-if (roomId) {
-    db.ref(`rooms/${roomId}/drawing`).on("value", (snapshot) => {
-        let data = snapshot.val();
-        if (data) ctx.fillRect(data.x, data.y, 5, 5);
-    });
-}
+// Sync Drawing
+db.ref(`rooms/${roomId}/drawing`).on("child_added", (snapshot) => {
+    let data = snapshot.val();
+    ctx.fillRect(data.x, data.y, 5, 5);
+});
 
-// Chat functionality
+// Chat Functionality
 sendMessageBtn.addEventListener("click", () => {
     let message = messageInput.value;
     if (message) {
@@ -94,17 +96,14 @@ sendMessageBtn.addEventListener("click", () => {
     }
 });
 
-// Listen for chat messages
-if (roomId) {
-    db.ref(`rooms/${roomId}/chat`).on("child_added", (snapshot) => {
-        let msg = snapshot.val();
-        let msgElement = document.createElement("p");
-        msgElement.textContent = `${msg.player}: ${msg.text}`;
-        chatBox.appendChild(msgElement);
-    });
-}
+db.ref(`rooms/${roomId}/chat`).on("child_added", (snapshot) => {
+    let msg = snapshot.val();
+    let msgElement = document.createElement("p");
+    msgElement.textContent = `${msg.player}: ${msg.text}`;
+    chatBox.appendChild(msgElement);
+});
 
-// Handle guessing
+// Guessing Mechanism
 guessBtn.addEventListener("click", () => {
     let guess = guessInput.value.toLowerCase();
     if (guess === selectedWord) {
@@ -114,10 +113,7 @@ guessBtn.addEventListener("click", () => {
     guessInput.value = "";
 });
 
-// Listen for score updates
-if (roomId) {
-    db.ref(`rooms/${roomId}/scores`).on("value", (snapshot) => {
-        scores = snapshot.val() || {};
-        console.log("Scores:", scores);
-    });
-}
+db.ref(`rooms/${roomId}/scores`).on("value", (snapshot) => {
+    scores = snapshot.val() || {};
+    console.log("Scores:", scores);
+});

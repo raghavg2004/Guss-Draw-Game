@@ -8,65 +8,116 @@ const firebaseConfig = {
     appId: "1:567582107940:web:63e477503c4cc038b8abb1",
     measurementId: "G-WWMC1KKN6L"
 };
+
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-let roomCode = "";
-let playerName = prompt("Enter your name:");
+// Game variables
+let roomId = "";
+let playerName = "";
+let players = [];
+let currentTurn = 0;
+let words = ["apple", "banana", "car", "dog", "elephant"];
+let selectedWord = "";
+let gameRounds = 3;
+let scores = {};
 
-function createRoom() {
-    roomCode = Math.random().toString(36).substr(2, 5).toUpperCase();
-    db.ref(`rooms/${roomCode}`).set({ players: {}, round: 1, turnIndex: 0, words: [] });
-    joinRoom(roomCode);
-}
+// UI Elements
+const createRoomBtn = document.getElementById("createRoom");
+const joinRoomBtn = document.getElementById("joinRoom");
+const startGameBtn = document.getElementById("startGame");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const chatBox = document.getElementById("chatBox");
+const messageInput = document.getElementById("messageInput");
+const sendMessageBtn = document.getElementById("sendMessage");
+const guessInput = document.getElementById("guessInput");
+const guessBtn = document.getElementById("guessBtn");
 
-function joinRoom(code) {
-    roomCode = code;
-    db.ref(`rooms/${roomCode}/players`).push({ name: playerName, score: 0 });
-    document.getElementById("roomInfo").innerText = `Room Code: ${roomCode}`;
-    startGameListener();
-}
-
-document.getElementById("createRoomBtn").addEventListener("click", createRoom);
-document.getElementById("joinRoomBtn").addEventListener("click", () => {
-    const code = document.getElementById("roomCodeInput").value;
-    joinRoom(code);
+// Create a game room
+createRoomBtn.addEventListener("click", () => {
+    roomId = Math.random().toString(36).substr(2, 6);
+    playerName = prompt("Enter your name:");
+    if (!playerName) return;
+    db.ref(`rooms/${roomId}`).set({ players: { [playerName]: 0 }, currentTurn: 0, word: "" });
+    alert(`Room Created! Share this code: ${roomId}`);
 });
 
-document.getElementById("sendGuessBtn").addEventListener("click", () => {
-    const guess = document.getElementById("guessInput").value;
-    sendGuess(guess);
+// Join an existing room
+joinRoomBtn.addEventListener("click", () => {
+    roomId = prompt("Enter Room Code:");
+    playerName = prompt("Enter your name:");
+    if (!roomId || !playerName) return;
+    db.ref(`rooms/${roomId}/players/${playerName}`).set(0);
+    alert("Joined Room: " + roomId);
 });
 
-function startGameListener() {
-    db.ref(`rooms/${roomCode}`).on("value", (snapshot) => {
-        const data = snapshot.val();
-        if (data) updateGameState(data);
+// Start game
+startGameBtn.addEventListener("click", () => {
+    db.ref(`rooms/${roomId}/word`).set(words[Math.floor(Math.random() * words.length)]);
+    db.ref(`rooms/${roomId}/currentTurn`).set(0);
+});
+
+// Listen for word selection
+if (roomId) {
+    db.ref(`rooms/${roomId}/word`).on("value", (snapshot) => {
+        selectedWord = snapshot.val();
     });
 }
 
-function updateGameState(data) {
-    // Handle turn-based drawing and guessing logic
-}
-
-function sendGuess(guess) {
-    db.ref(`rooms/${roomCode}/chat`).push({ player: playerName, message: guess });
-}
-
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
+// Handle drawing
 let drawing = false;
 canvas.addEventListener("mousedown", () => (drawing = true));
 canvas.addEventListener("mouseup", () => (drawing = false));
-canvas.addEventListener("mousemove", draw);
-
-function draw(event) {
+canvas.addEventListener("mousemove", (event) => {
     if (!drawing) return;
-    ctx.lineTo(event.clientX, event.clientY);
-    ctx.stroke();
-    saveDrawingData();
+    let x = event.offsetX;
+    let y = event.offsetY;
+    ctx.fillRect(x, y, 5, 5);
+    db.ref(`rooms/${roomId}/drawing`).set({ x, y });
+});
+
+// Listen for drawing updates
+if (roomId) {
+    db.ref(`rooms/${roomId}/drawing`).on("value", (snapshot) => {
+        let data = snapshot.val();
+        if (data) ctx.fillRect(data.x, data.y, 5, 5);
+    });
 }
 
-function saveDrawingData() {
-    db.ref(`rooms/${roomCode}/drawing`).set(canvas.toDataURL());
+// Chat functionality
+sendMessageBtn.addEventListener("click", () => {
+    let message = messageInput.value;
+    if (message) {
+        db.ref(`rooms/${roomId}/chat`).push({ player: playerName, text: message });
+        messageInput.value = "";
+    }
+});
+
+// Listen for chat messages
+if (roomId) {
+    db.ref(`rooms/${roomId}/chat`).on("child_added", (snapshot) => {
+        let msg = snapshot.val();
+        let msgElement = document.createElement("p");
+        msgElement.textContent = `${msg.player}: ${msg.text}`;
+        chatBox.appendChild(msgElement);
+    });
+}
+
+// Handle guessing
+guessBtn.addEventListener("click", () => {
+    let guess = guessInput.value.toLowerCase();
+    if (guess === selectedWord) {
+        alert("Correct Guess! You win this round.");
+        db.ref(`rooms/${roomId}/scores/${playerName}`).set((scores[playerName] || 0) + 1);
+    }
+    guessInput.value = "";
+});
+
+// Listen for score updates
+if (roomId) {
+    db.ref(`rooms/${roomId}/scores`).on("value", (snapshot) => {
+        scores = snapshot.val() || {};
+        console.log("Scores:", scores);
+    });
 }

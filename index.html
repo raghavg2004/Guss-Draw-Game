@@ -5,26 +5,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Multiplayer Drawing Game</title>
     <link rel="stylesheet" href="styles.css">
-<script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-auth.js"></script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-auth.js"></script>
+    
     <script defer src="script.js"></script>
 </head>
 <body>
     <h1>Multiplayer Drawing Game</h1>
+    
     <div class="controls">
-        <button id="createRoomBtn">Create Room</button>
-        <button id="joinRoomBtn">Join Room</button>
+        <button id="createRoom">Create Room</button>
+        <button id="joinRoom">Join Room</button>
         <input type="text" id="roomCodeInput" placeholder="Enter Room Code">
+        <button id="startGame">Start Game</button>
     </div>
+
     <h2 id="roomInfo"></h2>
+
     <div class="canvas-container">
         <canvas id="canvas" width="600" height="400"></canvas>
     </div>
+
     <div class="chat-container">
-        <input type="text" id="guessInput" placeholder="Enter your guess">
-        <button id="sendGuessBtn">Send Guess</button>
+        <input type="text" id="messageInput" placeholder="Type a message...">
+        <button id="sendMessage">Send</button>
         <div id="chatBox"></div>
     </div>
+
+    <div class="guess-container">
+        <input type="text" id="guessInput" placeholder="Enter your guess">
+        <button id="guessBtn">Send Guess</button>
+    </div>
+
 </body>
 </html>
